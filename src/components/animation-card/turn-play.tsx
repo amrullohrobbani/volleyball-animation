@@ -63,83 +63,184 @@ const Player: React.FC<PlayerProps> = ({ position, color, number }) => {
     );
   };
 
-interface CourtProps {
-    startAnimation: boolean;
-}
+const lerp = (start: number, end: number, t: number): number => start + t * (end - start);
 
-const generateRandomPosition = (initialPosition: [number, number, number], direction: 'left' | 'right', isBall: boolean): [number, number, number] => {
-    let [x, y, z] = initialPosition;
+// Helper function to interpolate positions based on time
+const interpolatePosition = (
+  positions: { timestamp: number; position: [number, number, number] }[],
+  currentTime: number
+): [number, number, number] => {
+  if (positions.length < 2) return positions[0].position;
 
-    // Randomly add or subtract 0.1 from x and y
-    const deltaX = (Math.random() > 0.5 ? 0.1 : -0.1);
-    const deltaY = (Math.random() > 0.5 ? 0.1 : -0.1);
+  for (let i = 0; i < positions.length - 1; i++) {
+    const currentPos = positions[i];
+    const nextPos = positions[i + 1];
 
-    // Modify x and y
-    y += deltaY;
+    if (currentTime >= currentPos.timestamp && currentTime <= nextPos.timestamp) {
+      const t = (currentTime - currentPos.timestamp) / (nextPos.timestamp - currentPos.timestamp);
 
-    if (isBall) {
-        // For a ball, x can be either positive or negative
-        x += deltaX;
-    } else {
-        // If not a ball, adjust x based on the direction
-        if (direction === 'left') {
-            x -= Math.abs(deltaX); // Ensure x decreases
-        } else if (direction === 'right') {
-            x += Math.abs(deltaX); // Ensure x increases
-        }
+      return [
+        lerp(currentPos.position[0], nextPos.position[0], t),
+        lerp(currentPos.position[1], nextPos.position[1], t),
+        lerp(currentPos.position[2], nextPos.position[2], t),
+      ];
     }
-
-    // z is always constant at 7
-    z = 7;
-
-    return [x, y, z];
-  };
-
-const generatePositionsForMinute = () => {
-  const playerPositions: [number, number, number][][] = [];
-  const ballPositions: [number, number, number][] = [];
-  
-  // Generate positions for each of the 3600 frames
-  for (let i = 0; i < 3600; i++) {
-    // Generate 6 player positions for each frame
-    const framePlayerPositions: [number, number, number][] = [];
-    for (let j = 0; j < 6; j++) {
-        if (playerPositions[i]?.[j] === undefined) {
-            framePlayerPositions.push(generateRandomPosition([]));
-        }
-    }
-    playerPositions.push(framePlayerPositions);
-
-    // Generate ball position for each frame
-    ballPositions.push(generateRandomPosition([0, 0, 0], 'left', true));
   }
 
-  return { playerPositions, ballPositions };
-};  
+  // If we passed all positions, return the last one
+  return positions[positions.length - 1].position;
+};
 
-const Court: React.FC<CourtProps> = ({ startAnimation }) => {
-    const [currentFrame, setCurrentFrame] = useState(0);
-    const [isAnimating, setIsAnimating] = useState(false);
+const Court: React.FC<{ startAnimation: boolean }> = ({ startAnimation }) => {
+    const [startTime, setStartTime] = useState<number | null>(null);
+    const [currentTime, setCurrentTime] = useState(0);
 
-    const { playerPositions, ballPositions } = generatePositionsForMinute(); // Generate 1-minute positions
+    type BallPositionData = {
+        timestamp: number;
+        position: [number, number, number];
+    }[]
+    type PlayerPositionData = {
+        timestamp: number;
+        position: [number, number, number];
+    }[][]
 
-    // When the startAnimation prop changes, start or stop the animation
+    const ballPositions: BallPositionData = [
+        { "timestamp": 0, "position": [-3.87, 1, 8] },
+        { "timestamp": 10000, "position": [2.15, 1.5, 8] },
+        { "timestamp": 20000, "position": [-4.25, 1.2, 8] },
+        { "timestamp": 30000, "position": [0.95, 1.6, 8] },
+        { "timestamp": 40000, "position": [3.85, 1.1, 8] },
+        { "timestamp": 50000, "position": [-2.15, 1.4, 8] },
+        { "timestamp": 60000, "position": [1.75, 1.7, 8] }
+    ]
+
+    const playerPositions: PlayerPositionData = [
+    [
+      { "timestamp": 0, "position": [-5, -1.65, 7] },
+      { "timestamp": 10000, "position": [-4.53, 2.85, 7] },
+      { "timestamp": 20000, "position": [-2.91, -1.23, 7] },
+      { "timestamp": 30000, "position": [-0.93, -0.98, 7] },
+      { "timestamp": 40000, "position": [-1.77, 0.76, 7] },
+      { "timestamp": 50000, "position": [-0.98, -2.12, 7] },
+      { "timestamp": 60000, "position": [-1.15, 2.01, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [-4, 1.34, 7] },
+      { "timestamp": 10000, "position": [-3.78, 1.65, 7] },
+      { "timestamp": 20000, "position": [-1.35, -2.54, 7] },
+      { "timestamp": 30000, "position": [-3.27, 0.45, 7] },
+      { "timestamp": 40000, "position": [-3.89, -2.12, 7] },
+      { "timestamp": 50000, "position": [-1.65, 1.23, 7] },
+      { "timestamp": 60000, "position": [-3.54, -0.87, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [-7, -2.78, 7] },
+      { "timestamp": 10000, "position": [-4.87, 0.67, 7] },
+      { "timestamp": 20000, "position": [-4.43, -1.54, 7] },
+      { "timestamp": 30000, "position": [-1.23, 2.11, 7] },
+      { "timestamp": 40000, "position": [-4.03, 1.98, 7] },
+      { "timestamp": 50000, "position": [-3.76, 0.78, 7] },
+      { "timestamp": 60000, "position": [-4.23, -1.45, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [-1, -0.67, 7] },
+      { "timestamp": 10000, "position": [-1.12, -1.43, 7] },
+      { "timestamp": 20000, "position": [-2.15, 1.24, 7] },
+      { "timestamp": 30000, "position": [-4.12, -2.01, 7] },
+      { "timestamp": 40000, "position": [-1.34, 1.12, 7] },
+      { "timestamp": 50000, "position": [-4.78, 2.45, 7] },
+      { "timestamp": 60000, "position": [-1.98, -1.76, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [-2, 2.23, 7] },
+      { "timestamp": 10000, "position": [-0.65, -0.89, 7] },
+      { "timestamp": 20000, "position": [-1.89, 0.76, 7] },
+      { "timestamp": 30000, "position": [-2.45, -2.31, 7] },
+      { "timestamp": 40000, "position": [-4.65, 1.98, 7] },
+      { "timestamp": 50000, "position": [-2.54, -1.76, 7] },
+      { "timestamp": 60000, "position": [-0.89, 2.65, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [-3, -2.11, 7] },
+      { "timestamp": 10000, "position": [-3.27, 0.76, 7] },
+      { "timestamp": 20000, "position": [-4.78, -0.34, 7] },
+      { "timestamp": 30000, "position": [-3.92, 1.45, 7] },
+      { "timestamp": 40000, "position": [-2.11, -2.56, 7] },
+      { "timestamp": 50000, "position": [-3.14, 0.56, 7] },
+      { "timestamp": 60000, "position": [-2.32, -1.12, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [5, 0.56, 7] },
+      { "timestamp": 10000, "position": [2.98, -1.23, 7] },
+      { "timestamp": 20000, "position": [1.98, 1.45, 7] },
+      { "timestamp": 30000, "position": [4.12, -0.98, 7] },
+      { "timestamp": 40000, "position": [0.56, 2.45, 7] },
+      { "timestamp": 50000, "position": [3.23, -1.12, 7] },
+      { "timestamp": 60000, "position": [1.89, 1.23, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [4, -0.98, 7] },
+      { "timestamp": 10000, "position": [4.23, 1.34, 7] },
+      { "timestamp": 20000, "position": [3.12, -2.65, 7] },
+      { "timestamp": 30000, "position": [1.45, 2.45, 7] },
+      { "timestamp": 40000, "position": [1.87, -1.23, 7] },
+      { "timestamp": 50000, "position": [0.98, 1.12, 7] },
+      { "timestamp": 60000, "position": [3.12, -0.76, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [7, 2.76, 7] },
+      { "timestamp": 10000, "position": [0.54, 1.56, 7] },
+      { "timestamp": 20000, "position": [4.45, -2.01, 7] },
+      { "timestamp": 30000, "position": [3.23, 1.12, 7] },
+      { "timestamp": 40000, "position": [2.98, -1.67, 7] },
+      { "timestamp": 50000, "position": [4.78, 2.12, 7] },
+      { "timestamp": 60000, "position": [4.45, 1.56, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [1, -1.45, 7] },
+      { "timestamp": 10000, "position": [3.89, 0.98, 7] },
+      { "timestamp": 20000, "position": [2.65, 2.12, 7] },
+      { "timestamp": 30000, "position": [2.34, -1.76, 7] },
+      { "timestamp": 40000, "position": [4.11, 1.54, 7] },
+      { "timestamp": 50000, "position": [1.12, -2.43, 7] },
+      { "timestamp": 60000, "position": [2.34, 0.67, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [2, 1.32, 7] },
+      { "timestamp": 10000, "position": [1.12, -2.87, 7] },
+      { "timestamp": 20000, "position": [4.23, 1.65, 7] },
+      { "timestamp": 30000, "position": [4.78, -1.76, 7] },
+      { "timestamp": 40000, "position": [0.98, 0.23, 7] },
+      { "timestamp": 50000, "position": [2.54, 1.76, 7] },
+      { "timestamp": 60000, "position": [4.12, -0.45, 7] }
+    ],
+    [
+      { "timestamp": 0, "position": [3, -1.23, 7] },
+      { "timestamp": 10000, "position": [2.45, 1.54, 7] },
+      { "timestamp": 20000, "position": [0.87, -0.12, 7] },
+      { "timestamp": 30000, "position": [3.65, 2.34, 7] },
+      { "timestamp": 40000, "position": [4.56, -2.23, 7] },
+      { "timestamp": 50000, "position": [3.76, 1.45, 7] },
+      { "timestamp": 60000, "position": [0.54, 0.98, 7] }
+    ]
+  ]
+  
+    // Start animation when the prop changes
     useEffect(() => {
-        if (startAnimation) {
-        setIsAnimating(true);
-        setCurrentFrame(0); // Reset to the beginning when the animation starts
-        }
+      if (startAnimation) {
+        setStartTime(performance.now()); // Record the start time
+        setCurrentTime(0); // Reset current time
+      }
     }, [startAnimation]);
-
-    // Use `useFrame` to animate each frame
+  
+    // Use `useFrame` to update the current time and interpolate positions
     useFrame(() => {
-        if (isAnimating && currentFrame < playerPositions.length) {
-        setCurrentFrame((prev) => prev + 1); // Advance frame by frame
-        } else if (currentFrame >= playerPositions.length) {
-        setIsAnimating(false); // Stop animation when the sequence is complete
-        }
+      if (startAnimation && startTime !== null) {
+        const elapsedTime = performance.now() - startTime;
+        setCurrentTime(elapsedTime);
+      }
     });
-    
+  
     return (
         <>
           {/* Outer boundary for the court */}
@@ -156,15 +257,23 @@ const Court: React.FC<CourtProps> = ({ startAnimation }) => {
     
           {/* White boundary lines */}
           <mesh position={[0, 0.02, -4]}>
-            <planeGeometry args={[16, 0.05]} /> {/* Middle line */}
+            <planeGeometry args={[16, 0.1]} /> {/* Middle line */}
             <meshStandardMaterial color="white" />
           </mesh>
           <mesh position={[-8, 0.02, 0]}>
-            <planeGeometry args={[0.05, 8]} /> {/* Left boundary line */}
+            <planeGeometry args={[0.1, 8]} /> {/* Left boundary line */}
             <meshStandardMaterial color="white" />
           </mesh>
           <mesh position={[8, 0.02, 0]}>
-            <planeGeometry args={[0.05, 8]} /> {/* Right boundary line */}
+            <planeGeometry args={[0.1, 8]} /> {/* Right boundary line */}
+            <meshStandardMaterial color="white" />
+          </mesh>
+          <mesh position={[0, 4, 0]}>
+            <planeGeometry args={[16, 0.1]} /> {/* Top boundary line */}
+            <meshStandardMaterial color="white" />
+          </mesh>
+          <mesh position={[0, -4, 0]}>
+            <planeGeometry args={[16, 0.1]} /> {/* Top boundary line */}
             <meshStandardMaterial color="white" />
           </mesh>
     
@@ -183,24 +292,19 @@ const Court: React.FC<CourtProps> = ({ startAnimation }) => {
             <boxGeometry args={[0.05, 7, 9]} /> {/* Net is 2.43m high for men's volleyball */}
             <meshStandardMaterial color="black" wireframe={true} />
           </mesh>
+          
+        {/* Players */}
+        {playerPositions.map((player, index) => (
+            <Player
+                key={index}
+                position={interpolatePosition(player, currentTime)}
+                color={index < 6 ? 'red': 'blue'}
+                number={index + 1}
+            />
+        ))}
 
-            {/* Players for Team 1 (Left Side) */}
-            <Player position={playerPositions[currentFrame % playerPositions.length][0]} color="red" number={1} />
-            <Player position={playerPositions[currentFrame % playerPositions.length][1]} color="red" number={2} />
-            <Player position={playerPositions[currentFrame % playerPositions.length][2]} color="red" number={3} />
-            <Player position={playerPositions[currentFrame % playerPositions.length][3]} color="red" number={4} />
-            <Player position={playerPositions[currentFrame % playerPositions.length][4]} color="red" number={5} />
-            <Player position={playerPositions[currentFrame % playerPositions.length][5]} color="red" number={6} />
-
-            {/* Players for Team 2 (Right Side) */}
-            <Player  position={playerPositions[currentFrame % playerPositions.length][6]} color="blue" number={1} />
-            <Player  position={playerPositions[currentFrame % playerPositions.length][7]} color="blue" number={2} />
-            <Player  position={playerPositions[currentFrame % playerPositions.length][8]} color="blue" number={3} />
-            <Player  position={playerPositions[currentFrame % playerPositions.length][9]} color="blue" number={4} />
-            <Player  position={playerPositions[currentFrame % playerPositions.length][10]} color="blue" number={5} />
-            <Player  position={playerPositions[currentFrame % playerPositions.length][11]} color="blue" number={6} />
-
-            <Ball position={ballPositions[currentFrame % ballPositions.length]} />
+        {/* Volleyball (ball) */}
+        <Ball position={interpolatePosition(ballPositions, currentTime)} />
         </>
     );
   };
